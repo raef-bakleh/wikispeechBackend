@@ -24,24 +24,17 @@ sshTunnel.on("exit", (code) => {
   console.log(`SSH tunnel setup process exited with code ${code}`);
 });
 
-// Create Sequelize instance with database connection details
-const sequelize = new Sequelize(
-  "speechdb",
-  "raef.bakleh",
-  "Raefbakleh12",
-  {
-    host: "localhost",
-    port: 5432,
-    dialect: "postgres",
-    dialectOptions: {
-      ssl: {
-        rejectUnauthorized: false,
-      },
+const sequelize = new Sequelize("speechdb", "raef.bakleh", "Raefbakleh12", {
+  host: "localhost",
+  port: 5432,
+  dialect: "postgres",
+  dialectOptions: {
+    ssl: {
+      rejectUnauthorized: false,
     },
-  }
-);
+  },
+});
 
-// Test the database connection
 (async () => {
   try {
     await sequelize.authenticate();
