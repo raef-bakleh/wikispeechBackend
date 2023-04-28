@@ -4,7 +4,6 @@ require("dotenv").config();
 const { Sequelize } = require("sequelize");
 const { exec } = require("child_process");
 
-// Setup SSH tunnel to database
 const sshTunnel = exec(
   `ssh -L 5432:postgres:5432 raef.bakleh@ssh.phonetik.uni-muenchen.de -N`,
   (error, stdout, stderr) => {
@@ -24,16 +23,21 @@ sshTunnel.on("exit", (code) => {
   console.log(`SSH tunnel setup process exited with code ${code}`);
 });
 
-const sequelize = new Sequelize("speechdb", "raef.bakleh", "Raefbakleh12", {
-  host: "localhost",
-  port: 5432,
-  dialect: "postgres",
-  dialectOptions: {
-    ssl: {
-      rejectUnauthorized: false,
+const sequelize = new Sequelize(
+  "speechdb",
+  process.env.DB_USER,
+  process.env.DB_PASS,
+  {
+    host: process.env.DB_HOST,
+    port: 5432,
+    dialect: "postgres",
+    dialectOptions: {
+      ssl: {
+        rejectUnauthorized: false,
+      },
     },
-  },
-});
+  }
+);
 
 (async () => {
   try {

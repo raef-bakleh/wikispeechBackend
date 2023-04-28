@@ -5,7 +5,7 @@ const sequelize = require("./config/database");
 const wordsRouter = require("./routes/words");
 const runQuery = require("./routes/query");
 const allProjects = require("./routes/allProjects");
-const allTiers = require("./routes/allTiers");
+const allVocals = require("./routes/allVocals");
 const geoData = require("./routes/geoData");
 const getSpeakerCount = require("./routes/speakerCount");
 const generatedQuery = require("./routes/dynamicQuery");
@@ -24,7 +24,7 @@ app.post("/query", runQuery);
 app.get("/generateQuery", generatedQuery);
 app.get("/words", wordsRouter);
 app.get("/allProjects", allProjects);
-app.get("/allTiers", allTiers);
+app.get("/allVocals", allVocals);
 app.get("/getAllGeoData", geoData);
 app.get("/geojson/:state", (req, res) => {
   const state = req.params.state;
