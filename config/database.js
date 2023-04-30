@@ -5,7 +5,7 @@ const { Sequelize } = require("sequelize");
 const { exec } = require("child_process");
 
 const sshTunnel = exec(
-  `ssh -L 5432:postgres:5432 raef.bakleh@ssh.phonetik.uni-muenchen.de -N`,
+  `ssh -i wikiserver.pem -L 5432:localhost:5432 ec2-user@13.49.229.220`,
   (error, stdout, stderr) => {
     if (error) {
       console.error(`SSH tunnel setup error: ${error.message}`);
@@ -38,14 +38,5 @@ const sequelize = new Sequelize(
     },
   }
 );
-
-(async () => {
-  try {
-    await sequelize.authenticate();
-    console.log("Database connection established successfully.");
-  } catch (error) {
-    console.error("Unable to connect to the database:", error);
-  }
-})();
 
 module.exports = sequelize;

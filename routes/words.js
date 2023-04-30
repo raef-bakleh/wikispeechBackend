@@ -62,8 +62,7 @@ async function getWords(req, res) {
     spk.sex as sex,
     spk.age as age,
     geo.iso3166_2 as state,
-    geo.label as city,
-    count(distinct spk.id)\n
+    geo.label as city
 from signalfile sig
 join segment ort on sig.id = ort.signalfile_id \n
 join speaker spk on sig.speaker_id = spk.id\n
@@ -83,13 +82,13 @@ join project pr on sig.project_id = pr.id\n`;
     query += `\nwhere ${whereClauses.join(" \nand ")} `;
   }
 
-  query += ` \ngroup by
-  ort.label, 
-  pr.name, 
-  spk.sex,
-  spk.age, 
-  geo.iso3166_2,
-  geo.label`;
+  // query += ` \ngroup by
+  // ort.label,
+  // pr.name,
+  // spk.sex,
+  // spk.age,
+  // geo.iso3166_2,
+  // geo.label`;
 
   const words = await sequelize.query(query, {
     type: Sequelize.QueryTypes.SELECT,
