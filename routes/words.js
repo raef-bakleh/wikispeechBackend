@@ -12,6 +12,10 @@ async function getWords(req, res) {
   const selectedWord = req.query.selectedWord;
   const ageRange = req.query.ageRange.split(",");
   const regex = req.query.regex;
+  const phoneme = req.query.phoneme;
+  const city = req.query.city;
+  const mauOrt = req.query.mauOrt;
+  const compareStates = req.query.compareStates;
 
   let whereClause = [];
 
@@ -22,7 +26,9 @@ async function getWords(req, res) {
     whereClause.push(`spk.age between ${ageRange[0]} and ${ageRange[1]}`);
   }
   if (selectedWord) {
-    whereClause.push(`ort.label = '${selectedWord}'`);
+    tier == "ORT" && whereClause.push(`ort.label = '${selectedWord}'`);
+    tier == "MAU" && whereClause.push(`mau.label = '${selectedWord}'`);
+    tier == "KAN" && whereClause.push(`kan.label = '${selectedWord}'`);
   }
   if (project) {
     const projects = project.split(",");
@@ -35,7 +41,14 @@ async function getWords(req, res) {
     }
   }
   if (tier) {
-    whereClause.push(`ort.tier = '${tier}'`);
+    (tier == "" || tier == "ORT") && whereClause.push(`ort.tier = '${tier}'`);
+    tier == "MAU" && whereClause.push(`mau.tier = '${tier}'`);
+    tier == "MAU" && mauOrt === "true" && whereClause.push(`ort.tier = 'ORT'`);
+
+    tier == "KAN" && whereClause.push(`kan.tier = '${tier}'`);
+  }
+  if (city) {
+    whereClause.push(`geo.label = '${city}'`);
   }
   if (gender) {
     const genders = gender.split(",");
@@ -51,51 +64,60 @@ async function getWords(req, res) {
   if (state) {
     whereClause.push(`geo.iso3166_2 = '${state}'`);
   }
+
+
   if (regex) {
-    // const likeQuery = regexToLikeQuery(regex);
     whereClause.push(`ort.label ~ '${regex}'`);
   }
-
-  let query = `select distinct
-    ort.label as words,
-    pr.name as ProjectName,
-    spk.sex as sex,
-    spk.age as age,
-    geo.iso3166_2 as state,
-    geo.label as city
-from signalfile sig
-join segment ort on sig.id = ort.signalfile_id \n
-join speaker spk on sig.speaker_id = spk.id\n
-join geolocation geo on spk.geolocation_id = geo.id\n
-join project pr on sig.project_id = pr.id\n`;
-
-  if (Object.keys(whereClause).length > 0) {
-    const whereClauses = Object.keys(whereClause).map((key) => {
-      const value = whereClause[key];
-      if (typeof value === "object") {
-        const operator = Object.keys(value)[0];
-        return `\`${key}\` ${operator} '${value[operator]}'`;
-      } else {
-        return `${value}`;
-      }
-    });
-    query += `\nwhere ${whereClauses.join(" \nand ")} `;
+  if (phoneme) {
+    whereClause.push(`mau.label = '${phoneme}'`);
   }
 
-  // query += ` \ngroup by
-  // ort.label,
-  // pr.name,
-  // spk.sex,
-  // spk.age,
-  // geo.iso3166_2,
-  // geo.label`;
+  let query = `select distinct\n   `;
+
+  if (tier) {
+    (tier == "" || tier == "ORT") && (query += `ort.label as words,\n   `);
+    tier == "MAU" && (query += `mau.label as label,\n   `);
+    tier == "KAN" && (query += `kan.label as words,\n   `);
+  }
+
+
+  if (phoneme) {
+    query += `mau.label as phoneme,\n   `;
+  }
+  if (mauOrt === "true") {
+    query += `ort.label as words,\n `;
+  }
+  query += `pr.name as projectName,\n   spk.sex as sex,\n   spk.age as age,\n   geo.iso3166_2 as state,\n   geo.label as city\nfrom signalfile sig\n`;
+
+  (tier == "" || tier == "ORT") &&
+    (query += `join segment ort on sig.id = ort.signalfile_id \n`);
+  tier == "MAU" &&
+    mauOrt === "false" &&
+    (query += `join segment mau on sig.id = mau.signalfile_id \n`);
+  tier == "MAU" &&
+    mauOrt === "true" &&
+    (query += `join segment ort on sig.id = ort.signalfile_id \n`);
+  tier == "KAN" &&
+    (query += `join segment kan on sig.id = kan.signalfile_id \n`);
+  if (phoneme) {
+    query += `join links l on l.lto = ort.id\njoin segment mau on mau.id = l.lfrom\n`;
+  }
+  if (mauOrt === "true") {
+    query += `join links l on l.lto = ort.id\njoin segment mau on mau.id = l.lfrom\n`;
+  }
+
+  query += `join speaker spk on sig.speaker_id = spk.id\njoin geolocation geo on spk.geolocation_id = geo.id\njoin project pr on sig.project_id = pr.id\n`;
+
+  if (whereClause.length > 0) {
+    query += `where\n   ${whereClause.join(" and\n   ")}`;
+  }
 
   const words = await sequelize.query(query, {
     type: Sequelize.QueryTypes.SELECT,
     raw: true,
   });
   let response = {
-    query: query,
     words: words,
   };
   res.json(response);

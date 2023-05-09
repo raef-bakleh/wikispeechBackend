@@ -11,11 +11,15 @@ async function getSpeakerCount(req, res) {
   const project = req.query.project;
   const selectedWord = req.query.selectedWord;
   const ageRange = req.query.ageRange.split(",");
+  const city = req.query.city;
 
   let whereClause = [];
 
   if (age != 0 && age != "undefined") {
     whereClause.push(`spk.age = ${age}`);
+  }
+  if (city) {
+    whereClause.push(`geo.label = '${city}'`);
   }
   if (ageRange[0] !== "" && ageRange[1] !== "") {
     whereClause.push(`spk.age between ${ageRange[0]} and ${ageRange[1]}`);

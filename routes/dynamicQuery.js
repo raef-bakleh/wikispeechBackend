@@ -1,158 +1,253 @@
 const express = require("express");
-const { Sequelize, Op } = require("sequelize");
+const { Sequelize, DataTypes, where } = require("sequelize");
 const sequelize = require("../config/database");
+const { Op } = require("sequelize");
 
-async function generateQuery(req, res) {
+async function getDynamicQuery(req, res) {
+  const age = req.query.age;
   const gender = req.query.gender;
   const state = req.query.state;
   const project = req.query.project;
   const tier = req.query.tier;
   const selectedWord = req.query.selectedWord;
-  const ageRange = req.query.ageRange?.split(",");
-  const age = req.query.age;
+  const ageRange = req.query.ageRange.split(",");
   const regex = req.query.regex;
+  const phoneme = req.query.phoneme;
+  const city = req.query.city;
+  const mauOrt = req.query.mauOrt;
+  const compareStates = req.query.compareStates;
 
-  const tables = [];
-  const columns = [];
-  const conditions = [];
+  const convertIsoToState = (isoCode) => {
+    switch (isoCode) {
+      case "DE-BY":
+        return "Bayern";
+      case "DE-BW":
+        return "Baden-Württemberg";
+      case "DE-BE":
+        return "Berlin";
+      case "DE-BB":
+        return "Brandenburg";
+      case "DE-HB":
+        return "Bremen";
+      case "DE-HH":
+        return "Hamburg";
+      case "DE-HE":
+        return "Hessen";
+      case "DE-MV":
+        return "Mecklenburg-Vorpommern";
+      case "DE-NI":
+        return "Niedersachsen";
+      case "DE-NW":
+        return "Nordrhein-Westfalen";
+      case "DE-RP":
+        return "Rheinland-Pfalz";
+      case "DE-SL":
+        return "Saarland";
+      case "DE-SN":
+        return "Sachsen";
+      case "DE-ST":
+        return "Sachsen-Anhalt";
+      case "DE-SH":
+        return "Schleswig-Holstein";
+      case "DE-TH":
+        return "Thüringen";
+      case "AT-1":
+        return "Burgenland";
+      case "AT-2":
+        return "Kärnten";
+      case "AT-3":
+        return "Niederösterreich";
+      case "AT-4":
+        return "Oberösterreich";
+      case "AT-5":
+        return "Salzburg";
+      case "AT-6":
+        return "Steiermark";
+      case "AT-7":
+        return "Tirol";
+      case "AT-8":
+        return "Vorarlberg";
+      case "AT-9":
+        return "Wien";
+      case "CH-AG":
+        return "Aargau";
+      case "CH-BE":
+        return "Bern";
+      case "CH-BS":
+        return "Basel-Stadt";
+      case "CH-GL":
+        return "Glarus";
+      case "CH-GR":
+        return "Graubünden";
+      case "CH-LU":
+        return "Luzern";
+      case "CH-SG":
+        return "St. Gallen";
+      case "CH-SH":
+        return "Schaffhausen";
+      case "CH-VS":
+        return "Valais";
+      case "CH-ZH":
+        return "Zürich";
+      case "BE-WLG":
+        return "Lüttich";
+      case "IT-31":
+        return "Süd Tirol";
+      case "IT-32":
+        return "Süd Tirol";
+      case "LU-L":
+        return "Luxemburg";
+      case "LI-11":
+        return "Vaduz";
+      case "LU-L":
+        return "Luxemburg";
+      default:
+        return;
+    }
+  };
 
+  let whereClause = [];
+
+  if (age != 0 && age != "undefined") {
+    whereClause.push(`spk.age = ${age}`);
+  }
+  if (ageRange[0] !== "" && ageRange[1] !== "") {
+    whereClause.push(`spk.age between ${ageRange[0]} and ${ageRange[1]}`);
+  }
+  if (selectedWord) {
+    tier == "ORT" && whereClause.push(`ort.label = '${selectedWord}'`);
+    tier == "MAU" && whereClause.push(`mau.label = '${selectedWord}'`);
+    tier == "KAN" && whereClause.push(`kan.label = '${selectedWord}'`);
+  }
+  if (project) {
+    const projects = project.split(",");
+    if (projects.length > 1) {
+      whereClause.push(
+        `pr.name IN (${projects.map((s) => `'${s}'`).join(", ")})`
+      );
+    } else {
+      whereClause.push(`pr.name = '${projects[0]}'`);
+    }
+  }
+  if (tier) {
+    (tier == "" || tier == "ORT") && whereClause.push(`ort.tier = '${tier}'`);
+    tier == "MAU" && whereClause.push(`mau.tier = '${tier}'`);
+    tier == "MAU" && mauOrt === "true" && whereClause.push(`ort.tier = 'ORT'`);
+
+    tier == "KAN" && whereClause.push(`kan.tier = '${tier}'`);
+  }
+  if (city) {
+    whereClause.push(`geo.label = '${city}'`);
+  }
   if (gender) {
     const genders = gender.split(",");
     if (genders.length > 1) {
-      tables.push("speaker spk");
-      columns.push("spk.sex, spk.age");
-      conditions.push(
+      whereClause.push(
         `spk.sex in (${genders.map((s) => `'${s}'`).join(", ")})`
       );
     } else {
-      tables.push("speaker spk");
-      columns.push("spk.sex, spk.age");
-      conditions.push(`spk.sex = '${genders[0]}'`);
+      whereClause.push(`spk.sex = '${genders[0]}'`);
     }
   }
 
-  if (selectedWord) {
-    tables.push("signalfile sig", "segment ort", "pitch pit");
-    columns.push("ort.label, pit.f0");
-    conditions.push(`ort.label = '${selectedWord}'`);
-    if (tier) conditions.push(`ort.tier = '${tier}'`);
-    conditions.push("pit.signalfile_id = sig.id");
-    conditions.push("ort.sigfile_id = sig.id");
-    conditions.push("sig.speaker_id = spk.id");
+  if (state && compareStates === "false") {
+    whereClause.push(`geo.iso3166_2 = '${state}'`);
   }
-
-  if (ageRange?.length === 2 && ageRange[0] && ageRange[1] !== undefined) {
-    tables.push("speaker spk");
-    columns.push("spk.age");
-    conditions.push(`spk.age BETWEEN ${ageRange[0]} AND ${ageRange[1]}`);
+  if (compareStates === "true" && state) {
+    whereClause.push(`geo.iso3166_2 LIKE '${state.split("-")[0]}-%'`);
   }
-
-  if (state) {
-    tables.push("geolocation geo", "speaker spk");
-    columns.push("geo.label, geo.iso3166_2");
-    conditions.push(`geo.iso3166_2 = '${state}'`);
-    conditions.push("spk.geolocation_id = geo.id");
-  }
-
-  if (project) {
-    tables.push("project pr", "signalfile sig", "speaker spk");
-    columns.push("pr.name");
-    conditions.push(`pr.name = '${project}'`);
-    conditions.push("sig.project_id = pr.id");
-    conditions.push("sig.speaker_id = spk.id");
-    conditions.push("spk.project_id = pr.id");
-  }
-
-  if (tables.length === 0) {
-    res.json({ query: "" });
-    return;
-  }
-
-  let query = `SELECT ${columns.join(", ")} FROM ${tables[0]}`;
-
-  for (let i = 1; i < tables.length; i++) {
-    const prevTable = tables[i - 1];
-    const currTable = tables[i];
-    const relation = currTable === "speaker spk" ? "ON" : "JOIN";
-    const prevTableAlias = prevTable.split(" ")[0];
-    const currTableAlias = currTable.split(" ")[0];
-    const condition = conditions
-      .filter((c) => c.includes(prevTableAlias) && c.includes(currTableAlias))
-      .join(" AND ");
-    query += ` ${relation} ${currTable} ${condition ? ` ${condition}` : ""}`;
-  }
-
   if (regex) {
-    query += `WHERE CONCAT(${columns.join(", ")}) RLIKE '${regex}'`;
+    whereClause.push(`ort.label ~ '${regex}'`);
+  }
+  if (phoneme) {
+    whereClause.push(`mau.label = '${phoneme}'`);
   }
 
-  query += ";";
+  let query = `select distinct\n   `;
 
-  res.json({ query });
+  if (tier) {
+    (tier == "" || tier == "ORT") && (query += `ort.label as words,\n   `);
+    tier == "MAU" && (query += `mau.label as label,\n   `);
+    tier == "KAN" && (query += `kan.label as words,\n   `);
+  }
+
+  if (phoneme) {
+    query += `mau.label as phoneme,\n   `;
+  }
+  if (mauOrt === "true") {
+    query += `ort.label as words,\n `;
+  }
+  if (project) {
+    query += `pr.name as projectName,\n   `;
+  }
+  if (gender) {
+    query += `spk.sex as sex,\n   `;
+  }
+  if (
+    (age != 0 && age != "undefined") ||
+    (ageRange[0] !== "" && ageRange[1] !== "")
+  ) {
+    query += `spk.age as age,\n   `;
+  }
+  if (state && compareStates === "false") {
+    query += `geo.iso3166_2 as state,\n   `;
+  }
+  if (compareStates === "true" && state) {
+    query += `case when geo.iso3166_2 = '${state}' then '${convertIsoToState(
+      state
+    )}'else 'Other' end as state,\n   `;
+  }
+  if (city) {
+    query += `geo.label as city,\n   `;
+  }
+  query = query.slice(0, -5);
+
+  query += `\nfrom signalfile sig\n`;
+
+  (tier == "" || tier == "ORT") &&
+    (query += `join segment ort on sig.id = ort.signalfile_id \n`);
+  tier == "MAU" &&
+    mauOrt === "false" &&
+    (query += `join segment mau on sig.id = mau.signalfile_id \n`);
+  tier == "MAU" &&
+    mauOrt === "true" &&
+    (query += `join segment ort on sig.id = ort.signalfile_id \n`);
+  tier == "KAN" &&
+    (query += `join segment kan on sig.id = kan.signalfile_id \n`);
+  if (phoneme) {
+    query += `join links l on l.lto = ort.id\njoin segment mau on mau.id = l.lfrom\n`;
+  }
+  if (mauOrt === "true") {
+    query += `join links l on l.lto = ort.id\njoin segment mau on mau.id = l.lfrom\n`;
+  }
+  if (project) {
+    query += `join project pr on sig.project_id = pr.id\n`;
+  }
+  if (
+    (age != 0 && age != "undefined") ||
+    (ageRange[0] !== "" && ageRange[1] !== "") ||
+    gender
+  ) {
+    query += `join speaker spk on sig.speaker_id = spk.id\n`;
+  }
+  if (
+    state &&
+    query.includes(`join speaker spk on sig.speaker_id = spk.id\n`)
+  ) {
+    query += `join geolocation geo on spk.geolocation_id = geo.id\n`;
+  }
+  if (
+    state &&
+    !query.includes(`join speaker spk on sig.speaker_id = spk.id\n`)
+  ) {
+    query += `join speaker spk on sig.speaker_id = spk.id\njoin geolocation geo on spk.geolocation_id = geo.id\n`;
+  }
+
+  if (whereClause.length > 0) {
+    query += `where\n   ${whereClause.join(" and\n   ")}`;
+  }
+
+  res.json(query);
 }
 
-// async function generateQuery(req, res) {
-//   const filters = {
-//     gender: { table: "speaker", columns: ["sex", "age"] },
-//     state: { table: "geolocation", columns: ["label", "iso3166_2"] },
-//     project: { table: "project", columns: ["name"] },
-//     selectedWord: {
-//       table: "signalfile",
-//       columns: ["speaker_id"],
-//       join: [
-//         {
-//           table: "segment",
-//           columns: ["label"],
-//           on: "ort.sigfile_id = sig.id",
-//         },
-//         {
-//           table: "pitch",
-//           columns: ["f0"],
-//           on: "pit.signalfile_id = sig.id",
-//         },
-//       ],
-//     },
-//     tier: { table: "segment", columns: [] },
-//     ageRange: { table: "speaker", columns: ["age"] },
-//   };
-
-//   const whereConditions = [];
-
-//   Object.keys(filters).forEach((filter) => {
-//     const value = req.query[filter];
-
-//     if (value && filter !== "ageRange") {
-//       const filterData = filters[filter];
-//       const table = filterData.table;
-//       const columns = filterData.columns;
-//       const join = filterData.join;
-
-//       if (join) {
-//         join.forEach((joinData) => {
-//           const joinTable = joinData.table;
-//           const joinColumns = joinData.columns;
-//           const joinOn = joinData.on;
-//           whereConditions.push(
-//             `${joinTable}.${joinColumns.join(", ")} = '${value}'`
-//           );
-//           whereConditions.push(joinOn);
-//         });
-//       } else {
-//         columns.forEach((column) => {
-//           whereConditions.push(`${table}.${column} = '${value}'`);
-//         });
-//       }
-//     }
-//   });
-
-//   const query = `SELECT ${getSelectedColumns(filters)}
-//     FROM ${getTables(filters)}
-//     ${getJoins(filters)}
-//     ${getWhereClause(whereConditions)}
-//     ${getGroupBy(filters)};
-//   `;
-
-//   res.json({ query });
-// }
-
-module.exports = generateQuery;
+module.exports = getDynamicQuery;

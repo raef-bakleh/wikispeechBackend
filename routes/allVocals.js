@@ -10,6 +10,8 @@ async function getAllVocals(req, res) {
   const project = req.query.project;
   const selectedWord = req.query.selectedWord;
   const ageRange = req.query.ageRange.split(",");
+  const city = req.query.city;
+  const mauOrt = req.query.mauOrt;
 
   let whereClause = ["ort.tier= 'MAU'"];
 
@@ -46,6 +48,9 @@ async function getAllVocals(req, res) {
 
   if (state) {
     whereClause.push(`geo.iso3166_2 = '${state}'`);
+  }
+  if (city) {
+    whereClause.push(`geo.label = '${city}'`);
   }
 
   let query = `select distinct ort.label
