@@ -14,7 +14,8 @@ const app = express();
 const PORT = 3000;
 
 const corsOptions = {
-  origin: "http://localhost:3001","https://wikispeech-frontend.vercel.app/"
+  origin: "http://localhost:3001",
+  origin: "https://wikispeech-frontend.vercel.app/",
 };
 
 app.use(express.json());
