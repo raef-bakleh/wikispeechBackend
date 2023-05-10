@@ -11,10 +11,10 @@ const getSpeakerCount = require("./routes/speakerCount");
 const generatedQuery = require("./routes/dynamicQuery");
 const fs = require("fs");
 const app = express();
-const PORT = 3000;
+const PORT = 3001;
 
 const corsOptions = {
-  origin: ["http://localhost:3001", "https://wikispeech-frontend.vercel.app"],
+  origin: ["http://localhost:3000", "https://wikispeech-frontend.vercel.app"],
 };
 
 app.use(express.json());
