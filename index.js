@@ -26,19 +26,19 @@ app.get("/words", wordsRouter);
 app.get("/allProjects", allProjects);
 app.get("/allVocals", allVocals);
 app.get("/getAllGeoData", geoData);
-app.get("/geojson/:state", (req, res) => {
-  const state = req.params.state;
-  const filePath = `./data/${state}.json`;
+// app.get("/geojson/:state", (req, res) => {
+//   const state = req.params.state;
+//   const filePath = `./data/${state}.json`;
 
-  fs.readFile(filePath, (err, data) => {
-    if (err) {
-      console.log(err);
-      return res.status(500).send("Error reading file");
-    }
-    const geoJson = data ? JSON.parse(data) : {};
-    res.send(geoJson);
-  });
-});
+//   fs.readFile(filePath, (err, data) => {
+//     if (err) {
+//       console.log(err);
+//       return res.status(500).send("Error reading file");
+//     }
+//     const geoJson = data ? JSON.parse(data) : {};
+//     res.send(geoJson);
+//   });
+// });
 
 app.listen(PORT, () => {
   console.log(`Server is listening on port ${PORT}`);
