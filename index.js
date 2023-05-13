@@ -9,14 +9,14 @@ const allVocals = require("./routes/allVocals");
 const geoData = require("./routes/geoData");
 const getSpeakerCount = require("./routes/speakerCount");
 const generatedQuery = require("./routes/dynamicQuery");
-const fs = require("fs");
 const app = express();
 const PORT = 8080;
 
 const corsOptions = {
   origin: ["http://localhost:3000", "https://wikispeech-frontend.vercel.app"],
 };
-
+const fs = require("fs");
+const file = fs.readFileSync("./FFEFC56E8F45D23C62903F0C2CB5CD12.txt");
 app.use(express.json());
 app.use(cors(corsOptions));
 app.get("/speakerCount", getSpeakerCount);
@@ -26,6 +26,14 @@ app.get("/words", wordsRouter);
 app.get("/allProjects", allProjects);
 app.get("/allVocals", allVocals);
 
+app.get(
+  "/.well-known/pki-validation/FFEFC56E8F45D23C62903F0C2CB5CD12.txt",
+  (req, res) => {
+    res.sendFile(
+      "/Users/admin/wikispeechBackend/FFEFC56E8F45D23C62903F0C2CB5CD12.txt"
+    );
+  }
+);
 app.listen(PORT, () => {
   console.log(`Server is listening on port: ${PORT}`);
 });
