@@ -15,13 +15,6 @@ const https = require("https");
 const corsOptions = {
   origin: ["http://localhost:3000", "https://wikispeech-frontend.vercel.app"],
 };
-const fs = require("fs");
-const key = fs.readFileSync("private.key");
-const cert = fs.readFileSync("certificate.crt");
-const cred = {
-  key,
-  cert,
-};
 app.use(express.json());
 app.use(cors());
 app.get("/speakerCount", getSpeakerCount);
@@ -34,8 +27,6 @@ app.get("/allVocals", allVocals);
 app.listen(PORT, () => {
   console.log(`Server is listening on port: ${PORT}`);
 });
-const httpsServer = https.createServer(cred, app);
-httpsServer.listen(8443);
 sequelize
   .authenticate()
   .then(() =>
