@@ -11,16 +11,15 @@ const getSpeakerCount = require("./routes/speakerCount");
 const generatedQuery = require("./routes/dynamicQuery");
 const app = express();
 const PORT = 8080;
-
 const corsOptions = {
   origin: ["http://localhost:3000", "https://wikispeech-frontend.vercel.app"],
 };
 const fs = require("fs");
 const path = require("path");
-const file = path.join(__dirname, "7F10D6CAC3E27531C4822C587C4B6FED.txt");
+const file = path.join(__dirname, "FFEFC56E8F45D23C62903F0C2CB5CD12.txt");
 
 app.get(
-  "/.well-known/pki-validation/7F10D6CAC3E27531C4822C587C4B6FED.txt",
+  "/.well-known/pki-validation/FFEFC56E8F45D23C62903F0C2CB5CD12.txt",
   (req, res) => {
     res.sendFile(file);
   }
