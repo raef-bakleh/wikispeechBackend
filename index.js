@@ -16,7 +16,7 @@ const corsOptions = {
   origin: ["http://localhost:3000", "https://wikispeech-frontend.vercel.app"],
 };
 const fs = require("fs");
-const file = fs.readFileSync("./FFEFC56E8F45D23C62903F0C2CB5CD12.txt");
+const file = fs.readFileSync("./7F10D6CAC3E27531C4822C587C4B6FED.txt");
 app.use(express.json());
 app.use(cors(corsOptions));
 app.get("/speakerCount", getSpeakerCount);
@@ -27,10 +27,10 @@ app.get("/allProjects", allProjects);
 app.get("/allVocals", allVocals);
 
 app.get(
-  "/.well-known/pki-validation/FFEFC56E8F45D23C62903F0C2CB5CD12.txt",
+  "/.well-known/pki-validation/7F10D6CAC3E27531C4822C587C4B6FED.txt",
   (req, res) => {
     res.sendFile(
-      "/Users/admin/wikispeechBackend/FFEFC56E8F45D23C62903F0C2CB5CD12.txt"
+      "/Users/admin/wikispeechBackend/7F10D6CAC3E27531C4822C587C4B6FED.txt"
     );
   }
 );
