@@ -12,20 +12,22 @@ async function getSpeakerCount(req, res) {
   const selectedWord = req.query.selectedWord;
   const ageRange = req.query.ageRange.split(",");
   const city = req.query.city;
+  const compareStates = req.query.compareStates;
+  const regex = req.query.regex;
+  const phoneme = req.query.phoneme;
 
   let whereClause = [];
 
   if (age != 0 && age != "undefined") {
     whereClause.push(`spk.age = ${age}`);
   }
-  if (city) {
-    whereClause.push(`geo.label = '${city}'`);
-  }
   if (ageRange[0] !== "" && ageRange[1] !== "") {
     whereClause.push(`spk.age between ${ageRange[0]} and ${ageRange[1]}`);
   }
   if (selectedWord) {
-    whereClause.push(`ort.label = '${selectedWord}'`);
+    tier == "ORT" && whereClause.push(`ort.label = '${selectedWord}'`);
+    tier == "MAU" && whereClause.push(`mau.label = '${selectedWord}'`);
+    tier == "KAN" && whereClause.push(`kan.label = '${selectedWord}'`);
   }
   if (project) {
     const projects = project.split(",");
@@ -38,7 +40,14 @@ async function getSpeakerCount(req, res) {
     }
   }
   if (tier) {
-    whereClause.push(`ort.tier = '${tier}'`);
+    (tier == "" || tier == "ORT") && whereClause.push(`ort.tier = '${tier}'`);
+    tier == "MAU" && whereClause.push(`mau.tier = '${tier}'`);
+    tier == "MAU" && mauOrt === "true" && whereClause.push(`ort.tier = 'ORT'`);
+
+    tier == "KAN" && whereClause.push(`kan.tier = '${tier}'`);
+  }
+  if (city) {
+    whereClause.push(`geo.label = '${city}'`);
   }
   if (gender) {
     const genders = gender.split(",");
@@ -51,8 +60,17 @@ async function getSpeakerCount(req, res) {
     }
   }
 
-  if (state) {
+  if (state && compareStates === "false") {
     whereClause.push(`geo.iso3166_2 = '${state}'`);
+  }
+  if (compareStates === "true" && state) {
+    whereClause.push(`geo.iso3166_2 LIKE '${state.split("-")[0]}-%'`);
+  }
+  if (regex) {
+    whereClause.push(`ort.label ~ '${regex}'`);
+  }
+  if (phoneme) {
+    whereClause.push(`mau.label = '${phoneme}'`);
   }
 
   let query = `select 
