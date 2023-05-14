@@ -3,9 +3,9 @@ const { Sequelize, DataTypes, where } = require("sequelize");
 const sequelize = require("../config/database");
 const { Op } = require("sequelize");
 
-async function getAllProjects(req, res) {
+async function getInitialData(req, res) {
   let query = `select distinct\n 
-  pr.name as projectName
+  geo.iso3166_2 as state
   from signalfile sig
   join segment ort on sig.id = ort.signalfile_id 
   join speaker spk on spk.id = sig.speaker_id
@@ -14,21 +14,20 @@ async function getAllProjects(req, res) {
   where
      ort.tier = 'ORT'    `;
 
-  const projects = await sequelize.query(query, {
+  const states = await sequelize.query(query, {
     type: Sequelize.QueryTypes.SELECT,
     raw: true,
   });
   let response = {
-    // projects: [
-    //   ...new Set(
-    //     projects.map((project) => {
-    //       return project.projectName;
-    //     })
-    //   ),
-    // ],
-    projects: projects,
+    states: [
+      ...new Set(
+        states.map((word) => {
+          return word.state;
+        })
+      ),
+    ],
   };
   res.json(response);
 }
 
-module.exports = getAllProjects;
+module.exports = getInitialData;

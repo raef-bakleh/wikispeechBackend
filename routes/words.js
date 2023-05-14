@@ -65,7 +65,6 @@ async function getWords(req, res) {
     whereClause.push(`geo.iso3166_2 = '${state}'`);
   }
 
-
   if (regex) {
     whereClause.push(`ort.label ~ '${regex}'`);
   }
@@ -80,7 +79,6 @@ async function getWords(req, res) {
     tier == "MAU" && (query += `mau.label as label,\n   `);
     tier == "KAN" && (query += `kan.label as words,\n   `);
   }
-
 
   if (phoneme) {
     query += `mau.label as phoneme,\n   `;
