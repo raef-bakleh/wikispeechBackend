@@ -11,7 +11,8 @@ async function getDynamicQuery(req, res) {
   const tier = req.query.tier;
   const selectedWord = req.query.selectedWord;
   const ageRange = req.query.ageRange.split(",");
-  const regex = req.query.regex;
+  const ortRegex = req.query.ortRegex;
+  const mauRegex = req.query.mauRegex;
   const phoneme = req.query.phoneme;
   const city = req.query.city;
   const mauOrt = req.query.mauOrt;
@@ -106,6 +107,8 @@ async function getDynamicQuery(req, res) {
     }
   };
 
+  let joinKan = false;
+  let joinOrt = false;
   let whereClause = [];
 
   if (age != 0 && age != "undefined") {
@@ -129,11 +132,10 @@ async function getDynamicQuery(req, res) {
       whereClause.push(`pr.name = '${projects[0]}'`);
     }
   }
-  if (tier) {
+  if (tier && !joinKan && !joinOrt) {
     (tier == "" || tier == "ORT") && whereClause.push(`ort.tier = '${tier}'`);
     tier == "MAU" && whereClause.push(`mau.tier = '${tier}'`);
     tier == "MAU" && mauOrt === "true" && whereClause.push(`ort.tier = 'ORT'`);
-
     tier == "KAN" && whereClause.push(`kan.tier = '${tier}'`);
   }
   if (city) {
@@ -156,8 +158,19 @@ async function getDynamicQuery(req, res) {
   if (compareStates === "true" && state) {
     whereClause.push(`geo.iso3166_2 LIKE '${state.split("-")[0]}-%'`);
   }
-  if (regex) {
-    whereClause.push(`ort.label ~ '${regex}'`);
+  if (ortRegex) {
+    whereClause.push(`ort.label ~ '${ortRegex}'`);
+    if (tier != "ORT") {
+      whereClause.push(`ort.tier = 'ORT'`);
+      joinOrt = true;
+    }
+  }
+  if (mauRegex) {
+    whereClause.push(`kan.label ~ '${mauRegex}'`);
+    if (tier != "KAN") {
+      whereClause.push(`kan.tier = 'KAN'`);
+      joinKan = true;
+    }
   }
   if (phoneme) {
     whereClause.push(`mau.label = '${phoneme}'`);
@@ -170,12 +183,17 @@ async function getDynamicQuery(req, res) {
     tier == "MAU" && (query += `mau.label as label,\n   `);
     tier == "KAN" && (query += `kan.label as words,\n   `);
   }
-
+  if (joinKan) {
+    query += `kan.label as word,\n   `;
+  }
+  if (joinOrt) {
+    query += `ort.label as word,\n   `;
+  }
   if (phoneme) {
     query += `mau.label as phoneme,\n   `;
   }
   if (mauOrt === "true") {
-    query += `ort.label as words,\n `;
+    query += `${tier}.label as words,\n `;
   }
   if (project) {
     query += `pr.name as projectName,\n   `;
@@ -204,21 +222,20 @@ async function getDynamicQuery(req, res) {
 
   query += `\nfrom signalfile sig\n`;
 
-  (tier == "" || tier == "ORT") &&
-    (query += `join segment ort on sig.id = ort.signalfile_id \n`);
-  tier == "MAU" &&
-    mauOrt === "false" &&
-    (query += `join segment mau on sig.id = mau.signalfile_id \n`);
-  tier == "MAU" &&
-    mauOrt === "true" &&
-    (query += `join segment ort on sig.id = ort.signalfile_id \n`);
-  tier == "KAN" &&
-    (query += `join segment kan on sig.id = kan.signalfile_id \n`);
+  if (tier && !joinKan && !joinOrt) {
+    query += `join segment ${tier} on sig.id = ${tier}.signalfile_id \n`;
+  }
   if (phoneme) {
-    query += `join links l on l.lto = ort.id\njoin segment mau on mau.id = l.lfrom\n`;
+    query += `join links l on l.lto = ${tier}.id\njoin segment mau on mau.id = l.lfrom\n`;
+  }
+  if (joinKan) {
+    query += `join segment ort on sig.id = ort.signalfile_id\njoin links l on l.lto = ort.id\njoin segment kan on kan.id = l.lfrom\n`;
+  }
+  if (joinOrt) {
+    query += `join segment ort on sig.id = ort.signalfile_id\njoin links l on l.lto = ort.id\njoin segment kan on kan.id = l.lfrom\n`;
   }
   if (mauOrt === "true") {
-    query += `join links l on l.lto = ort.id\njoin segment mau on mau.id = l.lfrom\n`;
+    query += `join links l on l.lto = ${tier}.id\njoin segment mau on mau.id = l.lfrom\n`;
   }
   if (project) {
     query += `join project pr on sig.project_id = pr.id\n`;

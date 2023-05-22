@@ -13,9 +13,13 @@ async function getSpeakerCount(req, res) {
   const ageRange = req.query.ageRange.split(",");
   const city = req.query.city;
   const compareStates = req.query.compareStates;
-  const regex = req.query.regex;
+  const ortRegex = req.query.ortRegex;
+  const mauRegex = req.query.mauRegex;
   const phoneme = req.query.phoneme;
+  const mauOrt = req.query.mauOrt;
 
+  let joinKan = false;
+  let joinOrt = false;
   let whereClause = [];
 
   if (age != 0 && age != "undefined") {
@@ -25,9 +29,7 @@ async function getSpeakerCount(req, res) {
     whereClause.push(`spk.age between ${ageRange[0]} and ${ageRange[1]}`);
   }
   if (selectedWord) {
-    tier == "ORT" && whereClause.push(`ort.label = '${selectedWord}'`);
-    tier == "MAU" && whereClause.push(`mau.label = '${selectedWord}'`);
-    tier == "KAN" && whereClause.push(`kan.label = '${selectedWord}'`);
+    whereClause.push(`${tier}.label = '${selectedWord}'`);
   }
   if (project) {
     const projects = project.split(",");
@@ -39,7 +41,7 @@ async function getSpeakerCount(req, res) {
       whereClause.push(`pr.name = '${projects[0]}'`);
     }
   }
-  if (tier) {
+  if (tier && !joinKan && !joinOrt) {
     (tier == "" || tier == "ORT") && whereClause.push(`ort.tier = '${tier}'`);
     tier == "MAU" && whereClause.push(`mau.tier = '${tier}'`);
     tier == "MAU" && mauOrt === "true" && whereClause.push(`ort.tier = 'ORT'`);
@@ -66,8 +68,19 @@ async function getSpeakerCount(req, res) {
   if (compareStates === "true" && state) {
     whereClause.push(`geo.iso3166_2 LIKE '${state.split("-")[0]}-%'`);
   }
-  if (regex) {
-    whereClause.push(`ort.label ~ '${regex}'`);
+  if (ortRegex) {
+    whereClause.push(`ort.label ~ '${ortRegex}'`);
+    if (tier != "ORT") {
+      whereClause.push(`ort.tier = 'ORT'`);
+      joinOrt = true;
+    }
+  }
+  if (mauRegex) {
+    whereClause.push(`kan.label ~ '${mauRegex}'`);
+    if (tier != "KAN") {
+      whereClause.push(`kan.tier = 'KAN'`);
+      joinKan = true;
+    }
   }
   if (phoneme) {
     whereClause.push(`mau.label = '${phoneme}'`);
@@ -77,8 +90,25 @@ async function getSpeakerCount(req, res) {
   count(distinct case when spk.sex = 'm' then spk.id end) as male_count,
   count(distinct case when spk.sex = 'f' then spk.id end) as female_count,
   spk.sex
-from segment ort
-join Signalfile sig on ort.signalfile_id = sig.id\n
+  from signalfile sig\n`;
+
+  if (tier && !joinKan && !joinOrt) {
+    query += `join segment ${tier} on sig.id = ${tier}.signalfile_id \n`;
+  }
+  if (phoneme) {
+    query += `join links l on l.lto = ${tier}.id\njoin segment mau on mau.id = l.lfrom\n`;
+  }
+  if (joinKan) {
+    query += `join segment ort on sig.id = ort.signalfile_id\njoin links l on l.lto = ort.id\njoin segment kan on kan.id = l.lfrom\n`;
+  }
+  if (joinOrt) {
+    query += `join segment ort on sig.id = ort.signalfile_id\njoin links l on l.lto = ort.id\njoin segment kan on kan.id = l.lfrom\n`;
+  }
+  if (mauOrt === "true") {
+    query += `join links l on l.lto = ${tier}.id\njoin segment mau on mau.id = l.lfrom\n`;
+  }
+
+  query += `
 join Speaker spk on sig.speaker_id = spk.id\n
 join Geolocation geo on spk.geolocation_id = geo.id\n
 join Project pr on sig.project_id = pr.id\n`;
