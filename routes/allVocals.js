@@ -13,7 +13,7 @@ async function getAllVocals(req, res) {
   const city = req.query.city;
   const mauOrt = req.query.mauOrt;
 
-  let whereClause = ["ort.tier= 'MAU'"];
+  let whereClause = ["mau.tier= 'MAU'"];
 
   if (age != 0 && age != "undefined") {
     whereClause.push(`spk.age = ${age}`);
@@ -22,7 +22,9 @@ async function getAllVocals(req, res) {
     whereClause.push(`spk.age between ${ageRange[0]} and ${ageRange[1]}`);
   }
   if (selectedWord) {
-    whereClause.push(`ort.label = '${selectedWord}'`);
+    if (tier == "ORT") {
+      whereClause.push(`${tier.toLower()}.label = '${selectedWord}'`);
+    }
   }
   if (project) {
     const projects = project.split(",");
@@ -53,9 +55,9 @@ async function getAllVocals(req, res) {
     whereClause.push(`geo.label = '${city}'`);
   }
 
-  let query = `select distinct ort.label
-from Segment ort
-join Signalfile sig on ort.signalfile_id = sig.id\n
+  let query = `select distinct mau.label
+from Segment mau
+join Signalfile sig on mau.signalfile_id = sig.id\n
 join Speaker spk on sig.speaker_id = spk.id\n
 join Geolocation geo on spk.geolocation_id = geo.id\n
 join Project pr on sig.project_id = pr.id\n`;
@@ -72,6 +74,7 @@ join Project pr on sig.project_id = pr.id\n`;
     });
     query += `\nwhere ${whereClauses.join(" \nand ")} `;
   }
+  query += "order by mau.label";
 
   const vocals = await sequelize.query(query, {
     type: Sequelize.QueryTypes.SELECT,

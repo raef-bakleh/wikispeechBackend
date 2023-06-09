@@ -12,6 +12,7 @@ const allStates = require("./routes/allStates");
 const geoData = require("./routes/geoData");
 const actualProjects = require("./routes/allProjects");
 const allWords = require("./routes/allWords");
+const playButton = require("./routes/playButton");
 
 const app = express();
 const PORT = 8080;
@@ -31,6 +32,7 @@ app.get("/allVocals", allVocals);
 app.get("/allStates", allStates);
 app.get("/actualProjects", actualProjects);
 app.get("/allWords", allWords);
+app.get("/play", playButton);
 
 app.get("/getAllGeoData", geoData);
 

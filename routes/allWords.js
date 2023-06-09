@@ -4,7 +4,7 @@ const sequelize = require("../config/database");
 const { Op } = require("sequelize");
 
 async function getAllWords(req, res) {
-  let query = `select distinct\n 
+  let query = `select distinct\n
   ort.label as words
   from signalfile sig
   join segment ort on sig.id = ort.signalfile_id 

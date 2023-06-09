@@ -14,13 +14,21 @@ async function getSpeakerCount(req, res) {
   const city = req.query.city;
   const compareStates = req.query.compareStates;
   const ortRegex = req.query.ortRegex;
+  const kanRegex = req.query.kanRegex;
   const mauRegex = req.query.mauRegex;
   const phoneme = req.query.phoneme;
   const mauOrt = req.query.mauOrt;
 
   let joinKan = false;
   let joinOrt = false;
+  let joinMau = false;
   let whereClause = [];
+  let selectedForGroupBy = [];
+
+  const phonemeWithoutSeperator = phoneme.split(",");
+  const phonemeWithString = phonemeWithoutSeperator
+    .map((vocal) => `'${vocal}'`)
+    .join(",");
 
   if (age != 0 && age != "undefined") {
     whereClause.push(`spk.age = ${age}`);
@@ -29,7 +37,7 @@ async function getSpeakerCount(req, res) {
     whereClause.push(`spk.age between ${ageRange[0]} and ${ageRange[1]}`);
   }
   if (selectedWord) {
-    whereClause.push(`${tier}.label = '${selectedWord}'`);
+    whereClause.push(`${tier}.label = '${selectedWord.replace(/'/g, "\\'")}'`);
   }
   if (project) {
     const projects = project.split(",");
@@ -41,7 +49,7 @@ async function getSpeakerCount(req, res) {
       whereClause.push(`pr.name = '${projects[0]}'`);
     }
   }
-  if (tier && !joinKan && !joinOrt) {
+  if (tier && !joinKan && !joinOrt && !joinMau) {
     (tier == "" || tier == "ORT") && whereClause.push(`ort.tier = '${tier}'`);
     tier == "MAU" && whereClause.push(`mau.tier = '${tier}'`);
     tier == "MAU" && mauOrt === "true" && whereClause.push(`ort.tier = 'ORT'`);
@@ -75,15 +83,26 @@ async function getSpeakerCount(req, res) {
       joinOrt = true;
     }
   }
-  if (mauRegex) {
-    whereClause.push(`kan.label ~ '${mauRegex}'`);
+  if (kanRegex) {
+    whereClause.push(`kan.label ~ '${kanRegex.replace(/'/g, "\\'")}'`);
     if (tier != "KAN") {
       whereClause.push(`kan.tier = 'KAN'`);
+      whereClause.push(`kan.position = ort.position`);
+      selectedForGroupBy.push("kan.label");
       joinKan = true;
     }
   }
   if (phoneme) {
-    whereClause.push(`mau.label = '${phoneme}'`);
+    if (tier != "MAU") {
+      whereClause.push(`mau.tier = 'MAU'`);
+      joinMau = true;
+    }
+    if (phoneme.length == 1) {
+      whereClause.push(`mau.label = '${phoneme}' and\n   mau.tier='MAU'`);
+    }
+    if (phoneme.length > 1) {
+      whereClause.push(`mau.label in (${phonemeWithString})`);
+    }
   }
 
   let query = `select 
@@ -92,17 +111,26 @@ async function getSpeakerCount(req, res) {
   spk.sex
   from signalfile sig\n`;
 
-  if (tier && !joinKan && !joinOrt) {
+  if (tier && !joinOrt && !joinMau) {
     query += `join segment ${tier} on sig.id = ${tier}.signalfile_id \n`;
   }
-  if (phoneme) {
-    query += `join links l on l.lto = ${tier}.id\njoin segment mau on mau.id = l.lfrom\n`;
-  }
+  // if (phoneme) {
+  //   query += `join links l on l.lto = ${tier}.id\njoin segment mau on mau.id = l.lfrom\n`;
+  // }
   if (joinKan) {
-    query += `join segment ort on sig.id = ort.signalfile_id\njoin links l on l.lto = ort.id\njoin segment kan on kan.id = l.lfrom\n`;
+    query += `join segment kan on sig.id = kan.signalfile_id \n`;
   }
   if (joinOrt) {
-    query += `join segment ort on sig.id = ort.signalfile_id\njoin links l on l.lto = ort.id\njoin segment kan on kan.id = l.lfrom\n`;
+    if (tier == "KAN") {
+      whereClause.push(`kan.position = ort.position`);
+      selectedForGroupBy.push("kan.label");
+      query += `join segment ort on sig.id = ort.signalfile_id\n    join segment kan on sig.id = kan.signalfile_id\n    `;
+    } else {
+      query += `join segment ort on sig.id = ort.signalfile_id\njoin links l on l.lto = ort.id\njoin segment ${tier.toLowerCase()} on ${tier.toLowerCase()}.id = l.lfrom\n`;
+    }
+  }
+  if (joinMau) {
+    query += `join segment ort on sig.id = ort.signalfile_id\njoin links l on l.lto = ort.id\njoin segment mau on mau.id = l.lfrom\n`;
   }
   if (mauOrt === "true") {
     query += `join links l on l.lto = ${tier}.id\njoin segment mau on mau.id = l.lfrom\n`;

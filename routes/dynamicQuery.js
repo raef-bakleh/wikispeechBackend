@@ -13,10 +13,16 @@ async function getDynamicQuery(req, res) {
   const ageRange = req.query.ageRange.split(",");
   const ortRegex = req.query.ortRegex;
   const mauRegex = req.query.mauRegex;
+  const kanRegex = req.query.kanRegex;
   const phoneme = req.query.phoneme;
   const city = req.query.city;
   const mauOrt = req.query.mauOrt;
   const compareStates = req.query.compareStates;
+
+  const phonemeWithoutSeperator = phoneme.split(",");
+  const phonemeWithString = phonemeWithoutSeperator
+    .map((vocal) => `'${vocal}'`)
+    .join(",");
 
   const convertIsoToState = (isoCode) => {
     switch (isoCode) {
@@ -109,8 +115,9 @@ async function getDynamicQuery(req, res) {
 
   let joinKan = false;
   let joinOrt = false;
+  let joinMau = false;
   let whereClause = [];
-
+  let selectedForGroupBy = [];
   if (age != 0 && age != "undefined") {
     whereClause.push(`spk.age = ${age}`);
   }
@@ -118,9 +125,7 @@ async function getDynamicQuery(req, res) {
     whereClause.push(`spk.age between ${ageRange[0]} and ${ageRange[1]}`);
   }
   if (selectedWord) {
-    tier == "ORT" && whereClause.push(`ort.label = '${selectedWord}'`);
-    tier == "MAU" && whereClause.push(`mau.label = '${selectedWord}'`);
-    tier == "KAN" && whereClause.push(`kan.label = '${selectedWord}'`);
+    whereClause.push(`${tier}.label = '${selectedWord.replace(/'/g, "\\'")}'`);
   }
   if (project) {
     const projects = project.split(",");
@@ -132,7 +137,7 @@ async function getDynamicQuery(req, res) {
       whereClause.push(`pr.name = '${projects[0]}'`);
     }
   }
-  if (tier && !joinKan && !joinOrt) {
+  if (tier && !joinKan && !joinOrt && !joinMau) {
     (tier == "" || tier == "ORT") && whereClause.push(`ort.tier = '${tier}'`);
     tier == "MAU" && whereClause.push(`mau.tier = '${tier}'`);
     tier == "MAU" && mauOrt === "true" && whereClause.push(`ort.tier = 'ORT'`);
@@ -151,7 +156,6 @@ async function getDynamicQuery(req, res) {
       whereClause.push(`spk.sex = '${genders[0]}'`);
     }
   }
-
   if (state && compareStates === "false") {
     whereClause.push(`geo.iso3166_2 = '${state}'`);
   }
@@ -165,77 +169,148 @@ async function getDynamicQuery(req, res) {
       joinOrt = true;
     }
   }
-  if (mauRegex) {
-    whereClause.push(`kan.label ~ '${mauRegex}'`);
+  if (kanRegex) {
+    whereClause.push(`kan.label ~ '${kanRegex.replace(/'/g, "\\'")}'`);
     if (tier != "KAN") {
       whereClause.push(`kan.tier = 'KAN'`);
+      whereClause.push(`kan.position = ort.position`);
+      selectedForGroupBy.push("kan.label");
       joinKan = true;
     }
   }
+
   if (phoneme) {
-    whereClause.push(`mau.label = '${phoneme}'`);
+    if (tier != "MAU") {
+      whereClause.push(`mau.tier = 'MAU'`);
+      joinMau = true;
+    }
+    if (phoneme.length == 1) {
+      whereClause.push(`mau.label = '${phoneme}' and\n   mau.tier='MAU'`);
+    }
+    if (phoneme.length > 1) {
+      whereClause.push(`mau.label in (${phonemeWithString})`);
+    }
   }
 
-  let query = `select distinct\n   `;
+  let query = `select distinct\n    ${tier.toLowerCase()}.id,\n    `;
 
   if (tier) {
-    (tier == "" || tier == "ORT") && (query += `ort.label as words,\n   `);
-    tier == "MAU" && (query += `mau.label as label,\n   `);
-    tier == "KAN" && (query += `kan.label as words,\n   `);
+    if (tier === "ORT" || tier === "") {
+      query += `ort.label as words,\n   `;
+      if (phoneme) {
+        if (phoneme.length === 1) {
+          query += `mau.label as phoneme,\n   `;
+        }
+        if (phoneme.length > 1) {
+          query += `array_agg(mau.label) as phoneme,\n   `;
+        }
+      }
+    }
+
+    if (tier === "MAU") {
+      if (phoneme) {
+        if (phoneme.length === 1) {
+          query += `mau.label as phoneme,\n   `;
+        }
+        if (phoneme.length > 1) {
+          query += `array_agg(mau.label) as phoneme,\n   `;
+        }
+      } else {
+        query += `mau.label as phoneme,\n   `;
+      }
+    }
+
+    if (tier === "KAN") {
+      query += `kan.label as words,\n   `;
+      if (phoneme) {
+        if (phoneme.length === 1) {
+          query += `mau.label as phoneme,\n   `;
+        }
+        if (phoneme.length > 1) {
+          query += `array_agg(mau.label) as phoneme,\n   `;
+        }
+      }
+    }
+
+    selectedForGroupBy.push(`${tier.toLowerCase()}.label`);
+    selectedForGroupBy.push(`${tier.toLowerCase()}.id`);
   }
+
   if (joinKan) {
     query += `kan.label as word,\n   `;
+    selectedForGroupBy.push(`kan.label`);
   }
   if (joinOrt) {
     query += `ort.label as word,\n   `;
+    selectedForGroupBy.push(`ort.label`);
   }
-  if (phoneme) {
-    query += `mau.label as phoneme,\n   `;
-  }
+  // if (phoneme) {
+  //   if (phoneme.length == 1) {
+  //     query += `mau.label as phoneme,\n   `;
+  //   }
+  //   if (phoneme.length > 1) {
+  //     query += `array_agg(mau.label) as phoneme,\n   `;
+  //   }
+  // }
   if (mauOrt === "true") {
-    query += `${tier}.label as words,\n `;
+    query += `${tier.toLowerCase()}.label as words,\n `;
   }
   if (project) {
     query += `pr.name as projectName,\n   `;
+    selectedForGroupBy.push(`pr.name`);
   }
   if (gender) {
     query += `spk.sex as sex,\n   `;
+    selectedForGroupBy.push(`spk.sex`);
   }
   if (
     (age != 0 && age != "undefined") ||
     (ageRange[0] !== "" && ageRange[1] !== "")
   ) {
     query += `spk.age as age,\n   `;
+    selectedForGroupBy.push(`spk.age`);
   }
   if (state && compareStates === "false") {
     query += `geo.iso3166_2 as state,\n   `;
+    selectedForGroupBy.push(`geo.iso3166_2 `);
   }
   if (compareStates === "true" && state) {
     query += `case when geo.iso3166_2 = '${state}' then '${convertIsoToState(
       state
     )}'else 'Other' end as state,\n   `;
+    selectedForGroupBy.push(`geo.iso3166_2 `);
   }
   if (city) {
     query += `geo.label as city,\n   `;
+    selectedForGroupBy.push(`geo.label `);
   }
   query = query.slice(0, -5);
 
   query += `\nfrom signalfile sig\n`;
 
-  if (tier && !joinKan && !joinOrt) {
-    query += `join segment ${tier} on sig.id = ${tier}.signalfile_id \n`;
+  if (tier && !joinOrt && !joinMau) {
+    query += `join segment ${tier} on sig.id = ${tier.toLowerCase()}.signalfile_id \n`;
   }
-  if (phoneme) {
-    query += `join links l on l.lto = ${tier}.id\njoin segment mau on mau.id = l.lfrom\n`;
-  }
+  // if (phoneme) {
+  //   query += `join links l on l.lto = ${tier.toLowerCase()}.id\njoin segment mau on mau.id = l.lfrom\n`;
+  // }
   if (joinKan) {
-    query += `join segment ort on sig.id = ort.signalfile_id\njoin links l on l.lto = ort.id\njoin segment kan on kan.id = l.lfrom\n`;
+    query += `join segment kan on sig.id = kan.signalfile_id \n`;
   }
   if (joinOrt) {
-    query += `join segment ort on sig.id = ort.signalfile_id\njoin links l on l.lto = ort.id\njoin segment kan on kan.id = l.lfrom\n`;
+    if (tier == "KAN") {
+      whereClause.push(`kan.position = ort.position`);
+      selectedForGroupBy.push("kan.label");
+      query += `join segment ort on sig.id = ort.signalfile_id\n    join segment kan on sig.id = kan.signalfile_id\n    `;
+    } else {
+      query += `join segment ort on sig.id = ort.signalfile_id\njoin links l on l.lto = ort.id\njoin segment ${tier.toLowerCase()} on ${tier.toLowerCase()}.id = l.lfrom\n`;
+    }
+  }
+  if (joinMau) {
+    query += `join segment ort on sig.id = ort.signalfile_id\njoin links l on l.lto = ort.id\njoin segment mau on mau.id = l.lfrom\n`;
   }
   if (mauOrt === "true") {
-    query += `join links l on l.lto = ${tier}.id\njoin segment mau on mau.id = l.lfrom\n`;
+    query += `join links l on l.lto = ${tier.toLowerCase()}.id\njoin segment mau on mau.id = l.lfrom\n`;
   }
   if (project) {
     query += `join project pr on sig.project_id = pr.id\n`;
@@ -262,6 +337,11 @@ async function getDynamicQuery(req, res) {
 
   if (whereClause.length > 0) {
     query += `where\n   ${whereClause.join(" and\n   ")}`;
+  }
+  if (phoneme.length > 1) {
+    const groupByColumns = selectedForGroupBy.join(", ");
+    query += `\ngroup by ${groupByColumns}\n`;
+    query += `having count(distinct case when mau.label in (${phonemeWithString}) then mau.label end) = ${phonemeWithoutSeperator.length}`;
   }
 
   res.json(query);

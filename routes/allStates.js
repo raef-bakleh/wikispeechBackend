@@ -11,8 +11,7 @@ async function getInitialData(req, res) {
   join speaker spk on spk.id = sig.speaker_id
   join geolocation geo on geo.id=spk.geolocation_id
   join project pr on pr.id = sig.project_id
-  where
-     ort.tier = 'ORT'    `;
+   `;
 
   const states = await sequelize.query(query, {
     type: Sequelize.QueryTypes.SELECT,
