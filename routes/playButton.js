@@ -7,7 +7,7 @@ async function PlayButton(req, res) {
   const { id, tier } = req.query;
   let query;
 
-  if (tier == "ORT" || tier == "MAU") {
+  if (tier == "ORT") {
     query = `
       SELECT
         ort.id,
@@ -24,28 +24,15 @@ async function PlayButton(req, res) {
       WHERE
         ort.tier = 'ORT'
         AND mau.tier = 'MAU'
-        ${tier == "ORT" ? `AND ort.id = ${id}` : ""}
-        ${
-          tier == "MAU"
-            ? `
-        AND ort.id = (
-          SELECT ort.id
-          FROM segment ort
-          JOIN links l ON l.lto = ort.id
-          JOIN segment mau ON mau.id = l.lfrom
-          WHERE mau.id = ${id}
-          LIMIT 1
-        )
-      `
-            : ""
-        }      GROUP BY
-        ort.id,
-        ort.label,
-        sig.samplerate,
-        sig.speaker_id,
-        sig.filename;
+        AND ort.id = ${id} 
+      GROUP BY
+          ort.id,
+          ort.label,
+          sig.samplerate,
+          sig.speaker_id,
+          sig.filename;
     `;
-  } else {
+  } else if (tier == "KAN") {
     query = `
     SELECT
     ort.id,
@@ -68,6 +55,30 @@ ort.position=kan.position and
   GROUP BY
     ort.id,
     ort.label,
+    sig.samplerate,
+    sig.speaker_id,
+    sig.filename
+    `;
+  } else if (tier == "MAU") {
+    query = `
+    SELECT
+    mau.id,
+    mau.label AS words,
+    (mau.begin) / sig.samplerate::float AS begin,
+    ((mau.begin) + (mau.duration)) / sig.samplerate::float AS duration,
+    sig.speaker_id,
+    sig.filename
+  FROM
+    signalfile sig
+    JOIN segment mau ON sig.id = ort.signalfile_id
+  WHERE
+ort.position=kan.position and
+    ort.tier = 'ORT'
+    AND mau.tier = 'MAU'
+    AND mau.id = ${id}
+  GROUP BY
+    mau.id,
+    mau.label,
     sig.samplerate,
     sig.speaker_id,
     sig.filename

@@ -177,9 +177,6 @@ async function getWords(req, res) {
     query += `join segment ${tier} on sig.id = ${tier}.signalfile_id \n`;
   }
 
-  // if (phoneme) {
-  //   query += `join links l on l.lto = ${tier}.id\njoin segment mau on mau.id = l.lfrom\n`;
-  // }
   if (joinKan) {
     query += `join segment kan on sig.id = kan.signalfile_id \n`;
   }
