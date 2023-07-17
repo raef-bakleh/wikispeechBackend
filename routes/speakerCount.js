@@ -148,9 +148,7 @@ join Project pr on sig.project_id = pr.id\n`;
   }
 
   if (phoneme.length > 1) {
-    query += `\ngroup by pr.name, spk.sex, spk.id, spk.age, geo.iso3166_2, geo.label ${
-      state ? ",ort.label,ort.id" : ""
-    } having array_agg(mau.label ORDER BY mau.begin) @> ARRAY[${phonemeWithString}]`;
+    query += `\ngroup by spk.id  having array_agg(mau.label ORDER BY mau.begin) @> ARRAY[${phonemeWithString}]`;
   } else {
     query += ` \ngroup by
      spk.id
