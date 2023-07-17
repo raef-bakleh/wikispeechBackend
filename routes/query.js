@@ -4,8 +4,7 @@ const sequelize = require("../config/database");
 
 async function runQuery(req, response) {
   const query = req.body.query;
-  const tier = req.body.tier; // Retrieve the tier value from the request body
-
+  const tier = req.body.tier;
   if (!/^\s*SELECT/i.test(query)) {
     return response.send({
       error: true,
@@ -14,7 +13,6 @@ async function runQuery(req, response) {
   }
 
   try {
-    // Modify the query to include {tier}.id in the select clause
     let modifiedQuery;
     if (/SELECT\s+DISTINCT/i.test(query)) {
       modifiedQuery = query.replace(

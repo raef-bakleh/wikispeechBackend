@@ -284,9 +284,7 @@ async function getDynamicQuery(req, res) {
   if (tier && !joinOrt && !joinMau) {
     query += `join segment ${tier} on sig.id = ${tier.toLowerCase()}.signalfile_id \n`;
   }
-  // if (phoneme) {
-  //   query += `join links l on l.lto = ${tier.toLowerCase()}.id\njoin segment mau on mau.id = l.lfrom\n`;
-  // }
+
   if (joinKan) {
     query += `join segment kan on sig.id = kan.signalfile_id \n`;
   }

@@ -101,18 +101,3 @@ ort.position=kan.position and
 }
 
 module.exports = PlayButton;
-
-//   ${
-//     tier == "MAU"
-//       ? `
-//   AND ort.id = (
-//     SELECT ort.id
-//     FROM segment ort
-//     JOIN links l ON l.lto = ort.id
-//     JOIN segment mau ON mau.id = l.lfrom
-//     WHERE mau.id = ${id}
-//     LIMIT 1
-//   )
-// `
-//       : ""
-//   }
