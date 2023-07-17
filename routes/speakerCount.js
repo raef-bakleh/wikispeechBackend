@@ -23,7 +23,6 @@ async function getSpeakerCount(req, res) {
   let joinOrt = false;
   let joinMau = false;
   let whereClause = [];
-  let selectedForGroupBy = [];
 
   const phonemeWithoutSeperator = phoneme.split(",");
   const phonemeWithString = phonemeWithoutSeperator
@@ -77,18 +76,17 @@ async function getSpeakerCount(req, res) {
     whereClause.push(`geo.iso3166_2 LIKE '${state.split("-")[0]}-%'`);
   }
   if (ortRegex) {
-    whereClause.push(`ort.label ~ '${ortRegex}'`);
+    whereClause.push(`ort.label ~* '${ortRegex}'`);
     if (tier != "ORT") {
       whereClause.push(`ort.tier = 'ORT'`);
       joinOrt = true;
     }
   }
   if (kanRegex) {
-    whereClause.push(`kan.label ~ '${kanRegex.replace(/'/g, "\\'")}'`);
+    whereClause.push(`kan.label ~* '${kanRegex.replace(/'/g, "\\'")}'`);
     if (tier != "KAN") {
       whereClause.push(`kan.tier = 'KAN'`);
       whereClause.push(`kan.position = ort.position`);
-      selectedForGroupBy.push("kan.label");
       joinKan = true;
     }
   }
@@ -107,23 +105,18 @@ async function getSpeakerCount(req, res) {
 
   let query = `select 
   count(distinct case when spk.sex = 'm' then spk.id end) as male_count,
-  count(distinct case when spk.sex = 'f' then spk.id end) as female_count,
-  spk.sex
+  count(distinct case when spk.sex = 'f' then spk.id end) as female_count
   from signalfile sig\n`;
 
   if (tier && !joinOrt && !joinMau) {
     query += `join segment ${tier} on sig.id = ${tier}.signalfile_id \n`;
   }
-  // if (phoneme) {
-  //   query += `join links l on l.lto = ${tier}.id\njoin segment mau on mau.id = l.lfrom\n`;
-  // }
   if (joinKan) {
     query += `join segment kan on sig.id = kan.signalfile_id \n`;
   }
   if (joinOrt) {
     if (tier == "KAN") {
       whereClause.push(`kan.position = ort.position`);
-      selectedForGroupBy.push("kan.label");
       query += `join segment ort on sig.id = ort.signalfile_id\n    join segment kan on sig.id = kan.signalfile_id\n    `;
     } else {
       query += `join segment ort on sig.id = ort.signalfile_id\njoin links l on l.lto = ort.id\njoin segment ${tier.toLowerCase()} on ${tier.toLowerCase()}.id = l.lfrom\n`;
@@ -154,9 +147,15 @@ join Project pr on sig.project_id = pr.id\n`;
     query += `\nwhere ${whereClauses.join(" \nand ")} `;
   }
 
-  query += ` \ngroup by
-  spk.sex
+  if (phoneme.length > 1) {
+    query += `\ngroup by pr.name, spk.sex, spk.id, spk.age, geo.iso3166_2, geo.label ${
+      state ? ",ort.label,ort.id" : ""
+    } having array_agg(mau.label ORDER BY mau.begin) @> ARRAY[${phonemeWithString}]`;
+  } else {
+    query += ` \ngroup by
+     spk.id
 `;
+  }
 
   const count = await sequelize.query(query, {
     type: Sequelize.QueryTypes.SELECT,

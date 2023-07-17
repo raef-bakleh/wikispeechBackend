@@ -32,6 +32,7 @@ async function getWords(req, res) {
   let selectedForGroupBy = [
     "pr.name",
     "spk.sex",
+    "spk.id",
     "spk.age",
     "geo.iso3166_2",
     "geo.label",
@@ -82,14 +83,14 @@ async function getWords(req, res) {
   }
 
   if (ortRegex) {
-    whereClause.push(`ort.label ~ '${ortRegex}'`);
+    whereClause.push(`ort.label ~* '${ortRegex}'`);
     if (tier != "ORT") {
       whereClause.push(`ort.tier = 'ORT'`);
       joinOrt = true;
     }
   }
   if (kanRegex) {
-    whereClause.push(`kan.label ~ '${kanRegex.replace(/'/g, "\\'")}'`);
+    whereClause.push(`kan.label ~* '${kanRegex.replace(/'/g, "\\'")}'`);
     if (tier != "KAN") {
       whereClause.push(`kan.tier = 'KAN'`);
       whereClause.push(`kan.position = ort.position`);
@@ -120,7 +121,7 @@ async function getWords(req, res) {
           query += `mau.label as phoneme,\n   `;
         }
         if (phoneme.length > 1) {
-          query += `array_agg(mau.label) as phoneme,\n   `;
+          query += `array_agg(mau.label order by mau.begin) as phoneme,\n   `;
         }
       }
     }
@@ -131,7 +132,7 @@ async function getWords(req, res) {
           query += `mau.label as phoneme,\n   `;
         }
         if (phoneme.length > 1) {
-          query += `array_agg(mau.label) as phoneme,\n   `;
+          query += `array_agg(mau.label order by mau.begin) as phoneme,\n   `;
         }
       } else {
         query += `mau.label as phoneme,\n   `;
@@ -145,7 +146,7 @@ async function getWords(req, res) {
           query += `mau.label as phoneme,\n   `;
         }
         if (phoneme.length > 1) {
-          query += `array_agg(mau.label) as phoneme,\n   `;
+          query += `array_agg(mau.label order by mau.begin) as phoneme,\n   `;
         }
       }
     }
@@ -160,14 +161,6 @@ async function getWords(req, res) {
     query += `ort.label as word,\n   `;
   }
 
-  // if (phoneme) {
-  //   if (phoneme.length == 1) {
-  //     query += `mau.label as phoneme,\n   `;
-  //   }
-  //   if (phoneme.length > 1) {
-  //     query += `array_agg(mau.label) as phoneme,\n   `;
-  //   }
-  // }
   if (mauOrt === "true") {
     query += `${tier}.label as words,\n `;
   }
@@ -205,7 +198,7 @@ async function getWords(req, res) {
   if (phoneme.length > 1) {
     const groupByColumns = selectedForGroupBy.join(", ");
     query += `\ngroup by ${groupByColumns}\n`;
-    query += `having count(distinct case when mau.label in (${phonemeWithString}) then mau.label end) = ${phonemeWithoutSeperator.length}`;
+    query += `having array_agg(mau.label ORDER BY mau.begin) @> ARRAY[${phonemeWithString}]`;
   }
   const words = await sequelize.query(query, {
     type: Sequelize.QueryTypes.SELECT,

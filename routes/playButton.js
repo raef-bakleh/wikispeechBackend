@@ -2,18 +2,19 @@ const express = require("express");
 const { Sequelize, DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
 const { Op } = require("sequelize");
+const axios = require("axios");
 
 async function PlayButton(req, res) {
   const { id, tier } = req.query;
   let query;
 
-  if (tier == "ORT" || tier == "MAU") {
+  if (tier == "ORT") {
     query = `
       SELECT
         ort.id,
-        ort.label AS words,
-        MIN(mau.begin) / sig.samplerate::float AS begin,
-        (MAX(mau.begin) + MAX(mau.duration)) / sig.samplerate::float AS duration,
+        ort.label as words,
+        MIN(mau.begin) / sig.samplerate::float as begin,
+        (MAX(mau.begin) + MAX(mau.duration)) / sig.samplerate::float as duration,
         sig.speaker_id,
         sig.filename
       FROM
@@ -25,33 +26,37 @@ async function PlayButton(req, res) {
         ort.tier = 'ORT'
         AND mau.tier = 'MAU'
         ${tier == "ORT" ? `AND ort.id = ${id}` : ""}
-        ${
-          tier == "MAU"
-            ? `
-        AND ort.id = (
-          SELECT ort.id
-          FROM segment ort
-          JOIN links l ON l.lto = ort.id
-          JOIN segment mau ON mau.id = l.lfrom
-          WHERE mau.id = ${id}
-          LIMIT 1
-        )
-      `
-            : ""
-        }      GROUP BY
+
+        GROUP BY
         ort.id,
         ort.label,
         sig.samplerate,
         sig.speaker_id,
         sig.filename;
     `;
-  } else {
+  } else if (tier == "MAU") {
+    query = `
+    SELECT
+    mau.id,
+    mau.label as words,
+    (mau.begin) / sig.samplerate::float as begin,
+    ((mau.begin) + (mau.duration)) / sig.samplerate::float as duration,
+    sig.speaker_id,
+    sig.filename
+  FROM
+    signalfile sig
+    JOIN segment mau ON sig.id = mau.signalfile_id
+  WHERE
+     mau.tier = 'MAU'
+     and mau.id = ${id}
+    `;
+  } else if (tier == "KAN") {
     query = `
     SELECT
     ort.id,
-    ort.label AS words,
-    MIN(mau.begin) / sig.samplerate::float AS begin,
-    (MAX(mau.begin) + MAX(mau.duration)) / sig.samplerate::float AS duration,
+    ort.label as words,
+    MIN(mau.begin) / sig.samplerate::float as begin,
+    (MAX(mau.begin) + MAX(mau.duration)) / sig.samplerate::float as duration,
     sig.speaker_id,
     sig.filename
   FROM
@@ -76,17 +81,38 @@ ort.position=kan.position and
 
   const segments = await sequelize.query(query, {
     type: Sequelize.QueryTypes.SELECT,
-    replacements: { id },
   });
 
   if (segments.length > 0) {
     const { speaker_id, filename, begin, duration } = segments[0];
     const url = `https://www.phonetik.uni-muenchen.de/forschung/Bas/Experimente/phatt/audio/${speaker_id}/${filename}.wav`;
 
-    res.json({ url, begin, duration });
-  } else {
-    res.status(404).json({ error: "Segment not found" });
+    try {
+      const response = await axios.head(url);
+      if (response.status === 200) {
+        res.json({ url, begin, duration });
+      } else {
+        res.status(404).json({ error: "Audiodatei wurde nicht gefunden" });
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Audiodatei wurde nicht gefunden" });
+    }
   }
 }
 
 module.exports = PlayButton;
+
+//   ${
+//     tier == "MAU"
+//       ? `
+//   AND ort.id = (
+//     SELECT ort.id
+//     FROM segment ort
+//     JOIN links l ON l.lto = ort.id
+//     JOIN segment mau ON mau.id = l.lfrom
+//     WHERE mau.id = ${id}
+//     LIMIT 1
+//   )
+// `
+//       : ""
+//   }
