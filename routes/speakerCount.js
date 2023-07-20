@@ -38,6 +38,7 @@ async function getSpeakerCount(req, res) {
   if (selectedWord) {
     whereClause.push(`${tier}.label = '${selectedWord.replace(/'/g, "\\'")}'`);
   }
+
   if (project) {
     const projects = project.split(",");
     if (projects.length > 1) {
@@ -103,10 +104,10 @@ async function getSpeakerCount(req, res) {
     }
   }
 
-  let query = `select 
-  count(distinct case when spk.sex = 'm' then spk.id end) as male_count,
-  count(distinct case when spk.sex = 'f' then spk.id end) as female_count
-  from signalfile sig\n`;
+  let query = `SELECT DISTINCT ${
+    kanRegex || ortRegex || phoneme ? `${tier}.id as id,` : ""
+  } spk.id as speaker_id, spk.sex
+   from signalfile sig\n`;
 
   if (tier && !joinOrt && !joinMau) {
     query += `join segment ${tier} on sig.id = ${tier}.signalfile_id \n`;
@@ -148,10 +149,9 @@ join Project pr on sig.project_id = pr.id\n`;
   }
 
   if (phoneme.length > 1) {
-    query += `\ngroup by spk.id  having array_agg(mau.label ORDER BY mau.begin) @> ARRAY[${phonemeWithString}]`;
+    query += `group by ort.id,spk.id,spk.sex having ARRAY[${phonemeWithString}] <@ array_agg(mau.label)  `;
   } else {
-    query += ` \ngroup by
-     spk.id
+    query += ` \ngroup by spk.id, ${tier}.id 
 `;
   }
 

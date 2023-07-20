@@ -5,12 +5,12 @@ const sequelize = require("../config/database");
 async function runQuery(req, response) {
   const query = req.body.query;
   const tier = req.body.tier;
-  if (!/^\s*SELECT/i.test(query)) {
-    return response.send({
-      error: true,
-      message: "Invalid query: only SELECT queries are allowed",
-    });
-  }
+  // if (!/^\s*SELECT/i.test(query)) {
+  //   return response.send({
+  //     error: true,
+  //     message: "Invalid query: only SELECT queries are allowed",
+  //   });
+  // }
 
   try {
     let modifiedQuery;
