@@ -11,6 +11,7 @@ async function PlayButton(req, res) {
   if (tier == "ORT") {
     query = `
       SELECT
+      pr.name,
         ort.id,
         ort.label as words,
         MIN(mau.begin) / sig.samplerate::float as begin,
@@ -19,6 +20,7 @@ async function PlayButton(req, res) {
         sig.filename
       FROM
         signalfile sig
+        join project pr on pr.id=sig.project_id
         JOIN segment ort ON sig.id = ort.signalfile_id
         JOIN links l ON l.lto = ort.id
         JOIN segment mau ON mau.id = l.lfrom
@@ -29,6 +31,7 @@ async function PlayButton(req, res) {
 
         GROUP BY
         ort.id,
+        pr.name,
         ort.label,
         sig.samplerate,
         sig.speaker_id,
@@ -37,6 +40,7 @@ async function PlayButton(req, res) {
   } else if (tier == "MAU") {
     query = `
     SELECT
+    pr.name
     mau.id,
     mau.label as words,
     (mau.begin) / sig.samplerate::float as begin,
@@ -45,6 +49,7 @@ async function PlayButton(req, res) {
     sig.filename
   FROM
     signalfile sig
+    join project pr on pr.id=sig.project_id
     JOIN segment mau ON sig.id = mau.signalfile_id
   WHERE
      mau.tier = 'MAU'
@@ -53,6 +58,7 @@ async function PlayButton(req, res) {
   } else if (tier == "KAN") {
     query = `
     SELECT
+    pr.name,
     ort.id,
     ort.label as words,
     MIN(mau.begin) / sig.samplerate::float as begin,
@@ -61,6 +67,7 @@ async function PlayButton(req, res) {
     sig.filename
   FROM
     signalfile sig
+    join project pr on pr.id=sig.project_id
     JOIN segment ort ON sig.id = ort.signalfile_id
     JOIN links l ON l.lto = ort.id
     JOIN segment mau ON mau.id = l.lfrom
@@ -84,9 +91,13 @@ ort.position=kan.position and
   });
 
   if (segments.length > 0) {
-    const { speaker_id, filename, begin, duration } = segments[0];
-    const url = `https://www.phonetik.uni-muenchen.de/forschung/Bas/Experimente/phatt/audio/${speaker_id}/${filename}.wav`;
-
+    const { name, speaker_id, filename, begin, duration } = segments[0];
+    let url;
+    if (name === "DEUTSCH_HEUTE") {
+      url = `https://www.phonetik.uni-muenchen.de/forschung/Bas/Experimente/DeutschHeute/${filename}.wav`;
+    } else {
+      url = `https://www.phonetik.uni-muenchen.de/forschung/Bas/Experimente/phatt/audio/${speaker_id}/${filename}.wav`;
+    }
     try {
       const response = await axios.head(url);
       if (response.status === 200) {
