@@ -40,7 +40,7 @@ async function PlayButton(req, res) {
   } else if (tier == "MAU") {
     query = `
     SELECT
-    pr.name
+    pr.name,
     mau.id,
     mau.label as words,
     (mau.begin) / sig.samplerate::float as begin,
@@ -79,6 +79,7 @@ ort.position=kan.position and
     AND kan.id = ${id}
   GROUP BY
     ort.id,
+    pr.name,
     ort.label,
     sig.samplerate,
     sig.speaker_id,
