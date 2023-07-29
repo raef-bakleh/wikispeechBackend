@@ -192,7 +192,7 @@ async function getDynamicQuery(req, res) {
     // }
   }
 
-  let query = `select distinct\n    ${tier.toLowerCase()}.id,\n    `;
+  let query = `select\n    ${tier.toLowerCase()}.id,\n    `;
 
   if (tier) {
     if (tier === "ORT" || tier === "") {
