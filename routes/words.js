@@ -90,7 +90,7 @@ async function getWords(req, res) {
     }
   }
   if (kanRegex) {
-    whereClause.push(`kan.label ~* '${kanRegex.replace(/'/g, "\\'")}'`);
+    whereClause.push(`kan.label ~* '${kanRegex.replace(/'/g, "''")}'`);
     if (tier != "KAN") {
       whereClause.push(`kan.tier = 'KAN'`);
       whereClause.push(`kan.position = ort.position`);
