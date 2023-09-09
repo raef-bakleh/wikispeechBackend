@@ -187,9 +187,6 @@ async function getDynamicQuery(req, res) {
     if (phoneme.length == 1) {
       whereClause.push(`mau.label = '${phoneme}' and\n   mau.tier='MAU'`);
     }
-    // if (phoneme.length > 1) {
-    //   whereClause.push(`mau.label in (${phonemeWithString})`);
-    // }
   }
 
   let query = `select\n    ${tier.toLowerCase()}.id,\n    `;

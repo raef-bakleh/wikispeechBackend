@@ -12,7 +12,7 @@ async function getAllWords(req, res) {
   join geolocation geo on geo.id=spk.geolocation_id
   join project pr on pr.id = sig.project_id
   where
-     ort.tier = 'ORT'    `;
+     ort.tier = 'ORT' `;
 
   const words = await sequelize.query(query, {
     type: Sequelize.QueryTypes.SELECT,

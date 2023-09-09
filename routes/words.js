@@ -106,9 +106,6 @@ async function getWords(req, res) {
     if (phoneme.length == 1) {
       whereClause.push(`mau.label = '${phoneme}' and\n   mau.tier='MAU'`);
     }
-    // if (phoneme.length > 1) {
-    //   whereClause.push(`mau.label in (${phonemeWithString})`);
-    // }
   }
 
   let query = `select distinct\n    `;
