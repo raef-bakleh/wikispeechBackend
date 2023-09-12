@@ -1,4 +1,3 @@
-// autossh -M 0 -o "ServerAliveInterval 30" -o "ServerAliveCountMax 3" -L 5432:postgres:5432 raef.bakleh@ssh.phonetik.uni-muenchen.de
 require("dotenv").config();
 const { Sequelize } = require("sequelize");
 

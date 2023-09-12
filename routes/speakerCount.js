@@ -15,7 +15,7 @@ async function getSpeakerCount(req, res) {
   const compareStates = req.query.compareStates;
   const ortRegex = req.query.ortRegex;
   const kanRegex = req.query.kanRegex;
-  const mauRegex = req.query.mauRegex;
+  const mauVocal = req.query.mauVocal;
   const phoneme = req.query.phoneme;
   const mauOrt = req.query.mauOrt;
 
@@ -96,10 +96,10 @@ async function getSpeakerCount(req, res) {
       whereClause.push(`mau.tier = 'MAU'`);
       joinMau = true;
     }
-    if (phoneme.length == 1) {
+    if (phonemeWithoutSeperator.length == 1) {
       whereClause.push(`mau.label = '${phoneme}' and\n   mau.tier='MAU'`);
     }
-    if (phoneme.length > 1) {
+    if (phonemeWithoutSeperator.length > 1) {
       whereClause.push(`mau.label in (${phonemeWithString})`);
     }
   }
@@ -148,7 +148,7 @@ join Project pr on sig.project_id = pr.id\n`;
     query += `\nwhere ${whereClauses.join(" \nand ")} `;
   }
 
-  if (phoneme.length > 1) {
+  if (phonemeWithoutSeperator.length > 1) {
     query += `group by ort.id,spk.id,spk.sex having ARRAY[${phonemeWithString}] <@ array_agg(mau.label)  `;
   } else {
     query += ` \ngroup by spk.id, ${tier}.id 

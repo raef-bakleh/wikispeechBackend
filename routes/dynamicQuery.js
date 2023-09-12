@@ -12,7 +12,7 @@ async function getDynamicQuery(req, res) {
   const selectedWord = req.query.selectedWord;
   const ageRange = req.query.ageRange.split(",");
   const ortRegex = req.query.ortRegex;
-  const mauRegex = req.query.mauRegex;
+  const mauVocal = req.query.mauVocal;
   const kanRegex = req.query.kanRegex;
   const phoneme = req.query.phoneme;
   const city = req.query.city;
@@ -184,7 +184,7 @@ async function getDynamicQuery(req, res) {
       whereClause.push(`mau.tier = 'MAU'`);
       joinMau = true;
     }
-    if (phoneme.length == 1) {
+    if (phonemeWithoutSeperator.length == 1) {
       whereClause.push(`mau.label = '${phoneme}' and\n   mau.tier='MAU'`);
     }
   }
@@ -195,10 +195,10 @@ async function getDynamicQuery(req, res) {
     if (tier === "ORT" || tier === "") {
       query += `ort.label as words,\n   `;
       if (phoneme) {
-        if (phoneme.length === 1) {
+        if (phonemeWithoutSeperator.length === 1) {
           query += `mau.label as phoneme,\n   `;
         }
-        if (phoneme.length > 1) {
+        if (phonemeWithoutSeperator.length > 1) {
           query += `array_agg(mau.label order by mau.begin) as phoneme,\n   `;
         }
       }
@@ -206,10 +206,10 @@ async function getDynamicQuery(req, res) {
 
     if (tier === "MAU") {
       if (phoneme) {
-        if (phoneme.length === 1) {
+        if (phonemeWithoutSeperator.length === 1) {
           query += `mau.label as phoneme,\n   `;
         }
-        if (phoneme.length > 1) {
+        if (phonemeWithoutSeperator.length > 1) {
           query += `array_agg(mau.label order by mau.begin) as phoneme,\n   `;
         }
       } else {
@@ -220,10 +220,10 @@ async function getDynamicQuery(req, res) {
     if (tier === "KAN") {
       query += `kan.label as words,\n   `;
       if (phoneme) {
-        if (phoneme.length === 1) {
+        if (phonemeWithoutSeperator.length === 1) {
           query += `mau.label as phoneme,\n   `;
         }
-        if (phoneme.length > 1) {
+        if (phonemeWithoutSeperator.length > 1) {
           query += `array_agg(mau.label order by mau.begin) as phoneme,\n   `;
         }
       }
@@ -326,7 +326,7 @@ async function getDynamicQuery(req, res) {
   if (whereClause.length > 0) {
     query += `where\n   ${whereClause.join(" and\n   ")}`;
   }
-  if (phoneme.length > 1) {
+  if (phonemeWithoutSeperator.length > 1) {
     const groupByColumns = selectedForGroupBy.join(",\n ");
     query += `\ngroup by ${groupByColumns}\n`;
     query += `   having array_agg(mau.label ORDER BY mau.begin) @> ARRAY[${phonemeWithString}]`;

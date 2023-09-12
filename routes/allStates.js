@@ -21,7 +21,6 @@ async function getInitialData(req, res) {
   const ages = states.map((state) => {
     return state.age;
   });
-  console.log(ages);
   const minAge = Math.min(...ages.filter((ages) => ages != 0));
   const maxAge = Math.max(...ages);
   let response = {
